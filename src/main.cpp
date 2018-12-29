@@ -243,25 +243,28 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-						/*// Test spline
-						std::vector<double> X(5), Y(5);
+					/*// Test spline
+					std::vector<double> X(5), Y(5);
    					X[0]=0.1; X[1]=0.4; X[2]=1.2; X[3]=1.8; X[4]=2.0;
    					Y[0]=0.1; Y[1]=0.7; Y[2]=0.6; Y[3]=1.1; Y[4]=0.9;
    					tk::spline s;
    					s.set_points(X,Y);    // currently it is required that X is already sorted
    					double x=1.5;
    					printf("spline at %f is %f\n", x, s(x));  */
-          	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+          	
+			// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
 
-						/*double dist_inc = 0.5;
-    				for(int i = 0; i < 50; i++)
-    				{
-          		next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-          		next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-    				} */
-
+			double dist_inc = 0.5;
+    		for(int i = 0; i < 50; i++)
+    		{
+				double next_s= car_s +(i+1)*dist_inc;
+				double next_d= 1.5 *4.0;
+				vector<double> xy =getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y  );
+          		next_x_vals.push_back(xy[0]);
+          		next_y_vals.push_back(xy[1]);
+    		} 
+			/*	
           	double pos_x;
-          	double pos_y;
           	double angle;
           	int path_size = previous_path_x.size();
 
@@ -295,6 +298,7 @@ int main() {
               	pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
               	pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
           	}
+			*/
 
 						//--------------
           	msgJson["next_x"] = next_x_vals;
