@@ -205,7 +205,7 @@ int main() {
   int lane =1;
   
   // have a reference velocity to target
-  double ref_vel=49.5; //mph 
+  double ref_vel= 0.0; //49.5; //mph 
 
   
 
@@ -250,7 +250,7 @@ int main() {
 
 			int prev_size = previous_path_x.size();
 
-			if (prev_size <0){
+			if (prev_size  > 0){
 				car_s = end_path_s;
 			}
 
@@ -263,20 +263,26 @@ int main() {
 				if ((d< 2+4*lane+2) && (d> 2+4*lane-2)){   // there is a vehicle in my lane, possibly behind
 				  double vx = sensor_fusion[i][3];
 				  double vy = sensor_fusion[i][4];
-				  double check_speed = distance(vx,vy,0.0,0.0);
+				  double check_speed = sqrt(vx*vx+vy*vy);//,0.0,0.0);
 				  double check_car_s= sensor_fusion[i][5];
 
-				  check_car_s += (double) prev_size *0.02*check_speed; // if usint previous points can project s value out
+				  check_car_s += ((double) prev_size *.02*check_speed); // if usint previous points can project s value out
 				  // check s values greater than mine and s gap
-				  if ((check_car_s > car_s ) &&(check_car_s - car_s <30 )){
+				  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){
 				    // do some logic hier, lower reference velocity so we dont crash into the car in front of us
 					//could also flag to try to change lane
-					ref_vel=29.5;
-
+					
+					//ref_vel=29.5;
+					too_close=true;
 				  }
-
-
 				}
+			}
+
+			if(too_close) {
+				ref_vel -= .224;
+			}
+			else if(ref_vel< 49.5){
+				ref_vel += .224;
 			}
 
           	
