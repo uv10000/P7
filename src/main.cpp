@@ -217,12 +217,7 @@ int main() {
     //auto sdata = string(data).substr(0, length);
     //cout << sdata << endl;
 
-	//start in lane 1
-    int lane =1;
-
-    // have a reference velocity to target
-    double ref_vel=49.5; //mph 
-
+	
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -254,6 +249,35 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"];
 
 			int prev_size = previous_path_x.size();
+
+			if (prev_size <0){
+				car_s = end_path_s;
+			}
+
+			bool too_close = false;
+
+			//find ref_v to use
+			for( int i =0 ; i< sensor_fusion.size();i++){
+				// car is in my lane
+				float d = sensor_fusion[i][6];
+				if ((d< 2+4*lane+2) && (d> 2+4*lane-2)){   // there is a vehicle in my lane, possibly behind
+				  double vx = sensor_fusion[i][3];
+				  double vy = sensor_fusion[i][4];
+				  double check_speed = distance(vx,vy,0.0,0.0);
+				  double check_car_s= sensor_fusion[i][5];
+
+				  check_car_s += (double) prev_size *0.02*check_speed; // if usint previous points can project s value out
+				  // check s values greater than mine and s gap
+				  if ((check_car_s > car_s ) &&(check_car_s - car_s <30 )){
+				    // do some logic hier, lower reference velocity so we dont crash into the car in front of us
+					//could also flag to try to change lane
+					ref_vel=29.5;
+
+				  }
+
+
+				}
+			}
 
           	
 
@@ -378,7 +402,7 @@ int main() {
 			tk::spline s;
 
 			
-			for(int i=0; i< ptsx.size();i++){
+			/*for(int i=0; i< ptsx.size();i++){
 				cout << ptsx[i] << " " ;
 			}
 			cout << endl;
