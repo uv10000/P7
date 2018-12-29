@@ -8,6 +8,7 @@
 #include "Eigen-3.3/Eigen/Core"
 #include "Eigen-3.3/Eigen/QR"
 #include "json.hpp"
+#include "spline.h"
 
 using namespace std;
 
@@ -242,8 +243,60 @@ int main() {
           	vector<double> next_x_vals;
           	vector<double> next_y_vals;
 
-
+						/*// Test spline
+						std::vector<double> X(5), Y(5);
+   					X[0]=0.1; X[1]=0.4; X[2]=1.2; X[3]=1.8; X[4]=2.0;
+   					Y[0]=0.1; Y[1]=0.7; Y[2]=0.6; Y[3]=1.1; Y[4]=0.9;
+   					tk::spline s;
+   					s.set_points(X,Y);    // currently it is required that X is already sorted
+   					double x=1.5;
+   					printf("spline at %f is %f\n", x, s(x));  */
           	// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
+
+						/*double dist_inc = 0.5;
+    				for(int i = 0; i < 50; i++)
+    				{
+          		next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+          		next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+    				} */
+
+          	double pos_x;
+          	double pos_y;
+          	double angle;
+          	int path_size = previous_path_x.size();
+
+          	for(int i = 0; i < path_size; i++)
+          	{
+            	  next_x_vals.push_back(previous_path_x[i]);
+              	next_y_vals.push_back(previous_path_y[i]);
+          	}
+
+          	if(path_size == 0)
+          	{
+            	  pos_x = car_x;
+              	pos_y = car_y;
+              	angle = deg2rad(car_yaw);
+          	}
+          	else
+          	{
+              	pos_x = previous_path_x[path_size-1];
+              	pos_y = previous_path_y[path_size-1];
+
+              	double pos_x2 = previous_path_x[path_size-2];
+              	double pos_y2 = previous_path_y[path_size-2];
+              	angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
+          	}
+
+          	double dist_inc = 0.5;
+          	for(int i = 0; i < 50-path_size; i++)
+          	{    
+              	next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
+              	next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
+              	pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
+              	pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
+          	}
+
+						//--------------
           	msgJson["next_x"] = next_x_vals;
           	msgJson["next_y"] = next_y_vals;
 
