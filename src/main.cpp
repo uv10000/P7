@@ -257,32 +257,45 @@ int main() {
 			bool too_close = false;
 
 			//find ref_v to use
+			vector<bool> is_free ={true,true,true};
 			for( int i =0 ; i< sensor_fusion.size();i++){
 				// car is in my lane
 				float d = sensor_fusion[i][6];
-				if ((d< 2+4*lane+2) && (d> 2+4*lane-2)){   // there is a vehicle in my lane, possibly behind
-				  double vx = sensor_fusion[i][3];
-				  double vy = sensor_fusion[i][4];
-				  double check_speed = sqrt(vx*vx+vy*vy);//,0.0,0.0);
-				  double check_car_s= sensor_fusion[i][5];
+				double vx = sensor_fusion[i][3];
+				double vy = sensor_fusion[i][4];
+				double check_speed = sqrt(vx*vx+vy*vy);//,0.0,0.0);
+				double check_car_s= sensor_fusion[i][5];
+				check_car_s += ((double) prev_size *.02*check_speed); // if using previous points can project s value out
+				for(int j=0; j<3;j++){
+					if ((d< 2+4*j+2) && (d> 2+4*j-2)){  // checking lane 0 
+					  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){ 
+				      	is_free[j]=false;
+						//if (j==lane) {too_close=true;}
+					  }
+					}
+				}
 
-				  check_car_s += ((double) prev_size *.02*check_speed); // if usint previous points can project s value out
+				/*
+				if ((d< 2+4*lane+2) && (d> 2+4*lane-2)){   // there is a vehicle in my lane, possibly behind
+
 				  // check s values greater than mine and s gap
-				  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){
-				    // do some logic hier, lower reference velocity so we dont crash into the car in front of us
+				  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){ // car i is on colllision course
+				    // do some logic here, lower reference velocity so we dont crash into the car in front of us
 					//could also flag to try to change lane
 					
 					//ref_vel=29.5;
 					too_close=true;
-					if(lane>0){
-						lane =0;
-					}
+					//if(lane>0){ lane =0;}
 				  }
 				}
+				*/
 			}
 
-			if(too_close) {
+
+			if(is_free[lane]==false) { //~is_free[lane]) {
 				ref_vel -= .224;
+				if(lane<2 && (is_free[lane+1]==true)) {lane= lane +1;}
+				else if (lane>0 && (is_free[lane-1]==true)) {lane= lane -1;}
 			}
 			else if(ref_vel< 49.5){
 				ref_vel += .224;

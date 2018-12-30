@@ -6,11 +6,13 @@
 **P7 Highway Driving Project**
 
 The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior
-* Build, a convolution neural network in Keras that predicts steering angles from images
-* Train and validate the model with a training and validation set
-* Test that the model successfully drives around track one without leaving the road
-* Summarize the results with a written report
+* The code compiles correctly.
+* The car is able to drive at least 4.32 miles without incident.
+* The car drives according to the speed limit.
+* Max Acceleration and Jerk are not Exceeded.
+* Car does not have collisions.
+* The car stays in its lane, except for the time between changing lanes.
+* The car is able to change lanes.
 
 
 [//]: # (Image References)
