@@ -207,9 +207,11 @@ int main() {
   // have a reference velocity to target
   double ref_vel= 0.0; //49.5; //mph 
 
+  int counter=100;
+
   
 
-  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane, &counter](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -268,7 +270,7 @@ int main() {
 				check_car_s += ((double) prev_size *.02*check_speed); // if using previous points can project s value out
 				for(int j=0; j<3;j++){
 					if ((d< 2+4*j+2) && (d> 2+4*j-2)){  // checking lane 0 
-					  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){ 
+					  if ((check_car_s > car_s - 15 ) &&((check_car_s - car_s) <30 )){ 
 				      	is_free[j]=false;
 						//if (j==lane) {too_close=true;}
 					  }
@@ -290,15 +292,25 @@ int main() {
 				}
 				*/
 			}
-
-
-			if(is_free[lane]==false) { //~is_free[lane]) {
+			
+			cout << is_free[0] << " " << is_free[1] << " " << is_free[2] << " " << counter << endl;
+			//bool vehicles_ahead_or_to_the_left=false;
+			//for(int j=0;j<=lane;j++){vehicles_ahead_or_to_the_left = vehicles_ahead_or_to_the_left || (is_free[j]==false);}
+			//if(vehicles_ahead_or_to_the_left == true) { // is_free[lane]==false
+			
+			if(is_free[lane]==false) {
 				ref_vel -= .224;
-				if(lane<2 && (is_free[lane+1]==true)) {lane= lane +1;}
-				else if (lane>0 && (is_free[lane-1]==true)) {lane= lane -1;}
-			}
-			else if(ref_vel< 49.5){
+				if(lane<2 && (is_free[lane+1]==true)&& counter ==0 && ref_vel >30) {lane= lane +1; counter=50;}
+				else if (lane>0 && (is_free[lane-1]==true)&& counter ==0&& ref_vel >30) {lane= lane -1;counter=50;}
+				else{counter = max(counter-1,0);}
+			}		
+			else if (ref_vel< 49.5){
 				ref_vel += .224;
+				
+			}
+			else {
+				if(lane<2 && (is_free[lane+1]==true) && counter==0 && ref_vel >30) {lane= lane +1;counter=50;}
+				else{counter = max(counter-1,0);}
 			}
 
           	
