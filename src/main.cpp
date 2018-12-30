@@ -274,6 +274,9 @@ int main() {
 					
 					//ref_vel=29.5;
 					too_close=true;
+					if(lane>0){
+						lane =0;
+					}
 				  }
 				}
 			}
