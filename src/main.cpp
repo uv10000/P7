@@ -207,11 +207,11 @@ int main() {
   // have a reference velocity to target
   double ref_vel= 0.0; //49.5; //mph 
 
-  int counter=100;
+  int counter=200;
 
   
 
-  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane, &counter](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
+  h.onMessage([&ref_vel, &map_waypoints_x,&map_waypoints_y,&map_waypoints_s,&map_waypoints_dx,&map_waypoints_dy,&lane, &counter, &max_s](uWS::WebSocket<uWS::SERVER> ws, char *data, size_t length,
                      uWS::OpCode opCode) {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
@@ -270,7 +270,7 @@ int main() {
 				check_car_s += ((double) prev_size *.02*check_speed); // if using previous points can project s value out
 				for(int j=0; j<3;j++){
 					if ((d< 2+4*j+2) && (d> 2+4*j-2)){  // checking lane 0 
-					  if ((check_car_s > car_s - 15 ) &&((check_car_s - car_s) <30 )){ 
+					  if ((check_car_s > fmod(car_s - 5,max_s) ) &&(check_car_s < fmod(car_s + 30,max_s) )){ 
 				      	is_free[j]=false;
 						//if (j==lane) {too_close=true;}
 					  }
@@ -299,19 +299,19 @@ int main() {
 			//if(vehicles_ahead_or_to_the_left == true) { // is_free[lane]==false
 			
 			if(is_free[lane]==false) {
-				ref_vel -= .224;
+				ref_vel -= 1.5*.224;
 				if(lane<2 && (is_free[lane+1]==true)&& counter ==0 && ref_vel >30) {lane= lane +1; counter=50;}
 				else if (lane>0 && (is_free[lane-1]==true)&& counter ==0&& ref_vel >30) {lane= lane -1;counter=50;}
-				else{counter = max(counter-1,0);}
+				
 			}		
 			else if (ref_vel< 49.5){
 				ref_vel += .224;
-				
 			}
 			else {
 				if(lane<2 && (is_free[lane+1]==true) && counter==0 && ref_vel >30) {lane= lane +1;counter=50;}
-				else{counter = max(counter-1,0);}
+				//else{counter = max(counter-1,0);}
 			}
+			counter = max(counter-1,0);
 
           	
 
