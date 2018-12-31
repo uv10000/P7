@@ -5,290 +5,121 @@
 
 **P7 Highway Driving Project**
 
-The goals / steps of this project are the following:
-* The code compiles correctly.
-* The car is able to drive at least 4.32 miles without incident.
-* The car drives according to the speed limit.
-* Max Acceleration and Jerk are not Exceeded.
-* Car does not have collisions.
-* The car stays in its lane, except for the time between changing lanes.
-* The car is able to change lanes.
+Please refer to my githup repo [P7](https://github.com/uv10000/P7).
+
+The goals / steps of this project according to the [rubric points](https://review.udacity.com/#!/rubrics/1971/view) are the following:
+
+1 The code compiles correctly. 
+
+2 The car is able to drive at least 4.32 miles without incident.
+
+3 The car drives according to the speed limit.
+
+4 Max Acceleration and Jerk are not Exceeded.
+
+5 Car does not have collisions.
+
+6 The car stays in its lane, except for the time between changing lanes.
+
+7 The car is able to change lanes.
+
+Details concerning these rubric points see below, after the "Executive Summary". 
 
 
 [//]: # (Image References)
 
 [image1]: ./examples/placeholder.png "Model Visualization"
-[image2]: ./examples/placeholder.png "Grayscaling"
-[image3]: ./examples/placeholder_small.png "Recovery Image"
-[image4]: ./examples/placeholder_small.png "Recovery Image"
-[image5]: ./examples/placeholder_small.png "Recovery Image"
-[image6]: ./examples/placeholder_small.png "Normal Image"
-[image7]: ./examples/placeholder_small.png "Flipped Image"
 
 
----
----
-## Rubric Points
-### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
+#### 0. Executive Summary   
 
----
-### Files Submitted & Code Quality
+Please note my list of problems and open questions at the end of this summary.
 
+My code is heavily based on Aaron's elegant and compact solution, plus only a few additional lines of code. Essentially the lines 265-303 in my main.cpp, and even those new lines are an adaptation Aaron's suggestions from the Q&A video.
 
-#### 1. Submission includes all required files and can be used to run the simulator in autonomous mode
+To briefly summarize Aaron's idea: Use splines instead of quintic polynomials to predict (lists of) waypoints. More specifically Aaron chooses an appropriate spline to extend the sequence, or queue of waypoints into the future, boundary conditions are the tangent to the last two points in the list of waypoints, on the near end of the spline, and the center-line of the desired lane, on the far end of the spline. The geometric shape (the locus, mathematically speaking) is chopped into waypoints by taking into account the (desired) velocity. Only the first few of those waypoints, at the near end of the spline, are used to "fill up" the aforementioned list or queue of waypoints. 
 
+Possibly as an advice to others: It took me a while to understand that the list of waypoints called "previous_path" returned from the simulator is simply the last list of waypoints as sent to the simulator one communication-step before, reduced by a few waypoints at the near end, that have actually been "processed" in the meantime (David Silver's Pacman-analogy was helpful for me). 
 
-My project includes the following files:
-* [video.mp4](https://github.com/uv10000/P4/blob/master/video.mp4) shows the final CNN performing on Track 1 for substantially more than 1 entire lap. It follows the road quite nicely and seems to be able to perform an indefinite number of laps. 
-*  [model.py](https://github.com/uv10000/P4/blob/master/model.py) containing the script to create and train the model
-* [drive.py](https://github.com/uv10000/P4/blob/master/drive.py) for driving the car in autonomous mode. Nearly unmodified, but I increased the set point for velocity to the max. 
-* [model.h5](https://github.com/uv10000/P4/blob/master/model.h5) containing a trained convolution neural network 
-* Your are reading [writeup_P4_behavioural_cloning_Ulrich_Voll.md](https://github.com/uv10000/P4/blob/master/writeup_P4_behavioural_cloning_Ulrich_Voll.md) summarizing the results
+My code is is ok but not perfect, see detailed discussion below, yet it works surprisingly well, given the few lines of (extra) code. In most cases the car was able to drive far more than the 4.32 miles required, performing lane changes in a sensible way, and going at v_max for most of the time.
+
+However this rather pleasing behaviour emerged only after a lot of parameter tuning and after introducing a debounce mechanism. So the behaviour is somehwhat fragile, see below. Even for that tiny model, and I suspect this would get (much) worse for a more complex model!
+
+I know that I could further improve but I have spent far more than my time budget on this already. So please don't fail me because I could do better (of course provided you can live with this submission as it is). 
 
 
-For reproducing my results by running model.py, please put the files provided by Udacity (Track 1) one level higher, i.e. 
 
-"ls ../data_provided_by_udacity/" 
+My single major generalisation of Aaron's Ansatz was to introduce three "lane-blocked" flags, one for each lane, not only one for the ego-lane alone.
 
-should yield:
+The lines 289-303 exhibit stateful behaviour, implicitly encoding a state-machine. 
 
- "driving_log.csv  IMG"
+I programmed the car to drive "German style", that is: keep to the right whenever possible. Moreover it is not allowed to overtake on the right on German Motorways, but I relaxed  on the latter, as in your "American Highway style" traffic simulation slow vehicles clutter the leftmost lanes (which is ok by your rules, I know). If I had chosen not to overtake on the right at all, the ego-vehicle would be stuck most of the times. 
 
-#### 2. Submission includes functional code
-For a first preview you might want to download and play the [video.mp4](https://github.com/uv10000/P4/blob/master/video.mp4) 
+I suppose these German rules are related to the high spread in vehicle speeds due to the lack of a speed limit on the Autobahn. If there is a car approaching at 200 km/h on the leftmost lane, you do not want to a 120 km/h vehicle clutter that lane while all or some lanes to the right are free. As an aside, I observed during simulations that even with American speed limits in place, most of my remaining critical situation occured in the context of overtaking on the right.
 
-Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
-```sh
-python drive.py model.h5
-```
-(Provided the Unity-simulator is up and running.)
+It is nice to have such a very small state-machine (implicit in the aforementioned lines of code) handling things reasonably well.
+
+In order to make it even better I could definitely extend the state machine. 
+In my experience even small state-machines tend to exhibit unexpected/unintended behaviour, plus the complexity of state-machines grows quickly with size. Handling temporal logic well is hard for most humans I suppose. Irrespective of the description language chosen, see below. Adding "bells and whistles" may improve the behaviour but it may also introduce spurious behaviour in at least some of the many newly arising and hard-to-test situations.  
+
+I found it beneficial to debounce things, calming things down. A pragmatic way to increase safety. I am quite confident that I could further reduce the number of incidents by defining "lane-blocked" in an even more conservative way for the respective non-ego-lanes. This would imply a reduced number of lane changes, but I think without loosing much performance in terms of going close to v_max speed most of the time in calm traffic. 
+
+A few questions regarding state-machines, and deliberate rule-breaking:
 
 
-#### 3. Submission code is usable and readable
+- In the lecture you stated that using state-machines was somewhat outdated. Can you comment on this? Would you recommend to stick to a "classic Werling Ansatz" using state machines, in a (mainly highway-based) project starting today? Is this a play-safe approach or would you perceive this as outdated and obolete? What alternatives are there, what would you recommend otherwise?
 
-The [model.py](https://github.com/uv10000/P4/blob/master/model.py) file contains the code for training and saving the convolution neural network. 
 
-The file shows the pipeline I used for training and validating the model, and it contains comments to explain how the code works.
+- I have some experience with state-machines/state-charts. Do you really think that C++ is the optimum description language? I used Stateflow a lot and I could imagine that even today, despite of the C++ renaissance, that for the state-chart aspects of a SDC-implementation this might still be the description language of choice. However, and admittedly, even using Stateflow as the supposedly "right" description language did not protect me against problems with unexpected behaviour as described above. What do you think?
 
----
-### Model Architecture and Training Strategy
+- More in the abstract, but essentially the same thing: can you comment and give advice on how to handle the aforementioned "complexity explosion" (as well as the fragility against small seemingly minor changes), possibly with an eye on formal automotive safety aspects. Ok regression testing, as you mentioned in the lecture. And possibly formal model checking methods but do you really believe in this?
 
-#### 1. An appropriate model architecture has been employed
+- May I ask your advice on how to handle (sensible) deviations from the traffic rules. In Sebastian's "Junior" paper he described explicitly braking the rules under certain circumstances, eg crossing solid lines after having waited for a while. I think this is a very important aspect that is rarely discussed. Even if one *could* encode a behaviour compliant with the rules of the highway code perfectly in a state machine or whatever, the resulting driving behaviour would not be very good, sometimes idotic. Well, should you explicitly program that may you do certain things under certain circumstances, as long as there is no police officer watching? Humans do this, it is just common sense, isn't it? 
 
-My model consists of a convolutional neural network along the lines of the [NVIDIA paper](https://arxiv.org/abs/1604.07316) recommended in class (cf. model.py lines 97-165). 
+- A related aspect is that one should sometimes "do what the others do", i.e. learning exceptions to the rules "on the fly", by watching others. As an example consider giving way to an ambulance in a traffic jam. 
 
-My earlier attempts trying to adapt variations of the LeNet architecture were unsuccessful. 
-
-The model includes RELU layers to introduce nonlinearity (code lines 112 and others, cf. the respective argument to the Conv2D commands, and the "model.add(Activation('relu'))" lines for the fully connected layers).
-
-The data is normalized in the model using a Keras lambda layer (code lines 100 f). 
+All comments welcome!
 
 
 
 
-#### 2. Attempts to reduce overfitting in the model
-
-The model was trained and validated on the data set provided by Udacity.
-
-
-
-The model contains dropout layers in order to reduce overfitting (model.py lines 109, 155,159). 
-REMARK: For the final version I have set the dropout probability to 0.0 as this yields better driving performance.
-
-
-The original amount of 8036 datasets  (= 8036 * 3 images, due to the additional left/right cameras) were split into a training set containing 6428 datasets and a validation set containing 1608 datasets (=20%). 
-```
-from sklearn.model_selection import train_test_split
-train_samples, validation_samples = train_test_split(lines, test_size=0.2) 
-```
-
- In order to ensure that the model was not overfitting various methods of data augmentation were employed.
-
-
- Data augmentation takes place in a python generator (model.py lines 29 - 79 ):
-
- ``` python 
- def generator(samples, batch_size=32):  
-     ...
-     yield sklearn.utils.shuffle(X_train, y_train)
- ``` 
-The generator hands out batches of desired size upon reading an array of lines. 
-
-
-In more detail, the generator does the following
-For a first preview you might want to download and play the [video.mp4](https://github.com/uv10000/P4/blob/master/video.mp4) 
-
- * initially, it  performes random shuffle of all samples (line 32)
- * the input array "samples" containing lines read from the .csv file is cut into batches of size "batch_size". (line 34). These batches are treated  one after the other as follows.
- 
- * Fore each batch and for each  line extract three images, corresponding to center, left and right camera, as well as the center angle. I used ndimage.imread, but I left various alternatives as commented out lines in the code. (model.py lines 40-50) 
-
-* create "fictitious" values for left_angle and right angle from center_angle by adding an offset called "correction" (lines 51-56). I tuned the parameter to a value of 0.003. Attempts (unsuccessful) using a multiplicative correction are commented out. 
-
-* Optionally, upon the flag "use_all_cameras", either only the center values for image and angle are appended to the batch, or all six values (center, left, right / image, steering angle). (56-63)
-
-* Optionally, upon the flag "augment_by_flipping", all values are doubled by adding the respective mirror image of both image / angle. (64-75)
-
-* Finally the batch consisting of x and y values including the augmented values is converted to a numpy array, randomly permuted and handed out by the yield-comman. 
-
- The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track. In fact it now seems to be able to go on forever on Track 1. However it fails badly, and almost immediately on Track 2. 
-
-#### 3. Model parameter tuning
-
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 170).
-
-I included dropout using a parameter of 0.1 (= 0.9 keep_prob, I had to learn this ...). Though I do not think this was mission critical, i.e. the model trained without dropout performed better than with dropout, on Track 1 that is. 
-Remark: just before the first submission I decided to set the dropout probability to 0.0 because the car drives better this way (less wiggling). 
-
-As suggested in class, I used the images of the left and the right cameras. Fictitious steering angles were computed using an offset parameter "correction" which I set to 0.003 in the final version (corresponding to a steering wheel (sic) angle of roughly 3°). 
-
-In my interpretation, this seems to encourage the system to return back to the middle, similar to a P-Controller somehow molded into the end-to-end system. An alternative method serving the same end would have been to deliberately drive "off centre" in self generated training runs, and then "showing" the system how to steer back into the middle, by recording only the stretches of time where the car is being brought back to centre and ommiting the stretches of time where it is deliberately moved away from the centre of the lane. 
-
- One might ask if it were better to separate these two issues by letting the CNN merely provide a desired heading, and a dedicated "low-level"-controller do the actual steering. But this would mean abondoning the "end-to-end" approach. I would be grateful to you reviewers if you could comment on what you think is better. 
-
-As suggested in class, I included the mirror image for every image in the training set, created an appropriately reflected steering angles accordingly. 
-
-Both employing additional cameras and reflections are happening in the generator as described above.
-
-Finally I applied clipping as suggested. However this did not have a big effect. Possibly the training time went down (smaller modell) but performance without clipping was even better, according to my impression. Clearly inference can be performed faster in the presence of clipping in that less convolutions have to be performed. I think it does not greatly reduce model size though, as only the parameters of the convolultions have to be stored in a CNN. 
-
-
-#### 4. Appropriate training data
-
- I used the training data provided by udacity, setting 20% aside as a validation set as described above. 
-
- I also augmented the training data as described above.
 
 
 ---
-### Model Architecture and Training Strategy
 
-#### 1. Solution Design Approach
-
-The overall strategy for deriving a model architecture was to try out architectures of increasing complexities. 
-
-Following your instructions in class the very first attempt was a single Layer NN in order to see that this kind of system was able to perform some vaguely reasonably steering at all. 
-
-My second step was to use a convolution neural network model similar to the LeNet model used previously. It seems plausible with starting as simple a network as possible. Also this was suggested in class. 
-
-The LeNet model was fitting quite well, no overfitting, and driving quite nicely and smoothely on Track 1. However, the vehicle turned right into the sand just after the bridge, every single time,  and I could not improve on this by merely tuning parameters. 
-
-I was not sure if I should focus on getting more training data (I was having troubles with acquiring data on my own, as I did not have a joystick and am finding it very hard to acquire reasonable data via keyboard) or on introducing a more complicated network architecture.
-
-I decided to start with implementing the NVIDA architecture (as suggested in class, quoted above). Fortunately, this almost immediately did the trick. 
-
-At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road. As far as Track 1 is concerned it seems to be able to keep this up indefinitely. 
-
-However, as mentioned before, it is a total and utter fail on Track 2. Due to the problems mentioned above (and time constraints!!!) I did not train the model on any Track 2 data. 
-
-One may question if the model has merely learned to somehow learn Track 1 by heart, as opposed to "really learning how to drive". 
-
-#### 2. Final Model Architecture
-
-The final model architecture (model.py lines 81-165) consisted of a convolution neural network with the following layers and layer sizes:
+---
 
 
 
-| Layer         		    |     Description	 | Shape        					            | line number in model.py
-|:---------------------:|:--------------------------------------:|:------------------:|:---------- |
-| Input         		   |      | 160x320x3 RGB image   							      |     94-100                 |
-| Normalization     	| lambda x: x/127.5 - 1. | 160x320x3 	  |            100          |
-| cropping (optional)     	| 50 rows from above, 20 from below | 90x320x3 	  |      104-107                |
-| dropout	(optional)				        | 0.1 probability |	90x320x3											                        |       109            |
-| Convolution 5x5     	| 2x2 stride, valid padding, RELU    |43x158x24	  |                112 ff      |
-| Convolution 5x5     	| 2x2 stride, valid padding, RELU    |20x77x36	  |                120 ff      |
-| Convolution 5x5     	| 2x2 stride, valid padding, RELU    |8x37x48	  |                128 ff      |
-| Convolution 3x3     	| 1x1 stride, valid padding, RELU    |6x35x64	  |                135 ff      |
-| Convolution 3x3     	| 1x1 stride, valid padding, RELU    |4x33x64	  |                143 ff      |
-| Flatten        		    | 4x33x64 = |  8448        									  |              151        |
-| Fully connected		    | incl. RELU + dropout (optional 0.1) | 100        									          |          153 ff            |
-| Fully connected		    | incl. RELU + dropout (optional 0.1) | 50        									          |          157 ff            |
-| Fully connected		    | incl. RELU   | 10        									          |          161 ff            |
-| Fully connected		    |   steering angle       (a regression problem!)    | 1        									          |          165 ff            |
-
-This is essentially the architecture provided by the aforementioned NVIDIA research paper.
-
-Note that there are no pooling layers. (I would like to understand why they seem to be dispensable.)
-
-I added some dropout layers but I do not think they were mission critical. There was no overfitting (on Track 1!), even with dropout probability set to 0.0. Remark: Just before submission I decided to disable dropout as the results were better without!
-
-#### 3. Creation of the Training Set & Training Process
-
-As mentioned above I merely used the NVIDIA training data plus data augmentation as suggested.
-
-Some 8000 lines in the data set correspont to some 24000 images plus corresponding angles,  when including the right and left camera values. By reflecting the images/angles I used a total of some 50000 images. 
-
-I randomly shuffled the (original!) data set and put 20% of the data into a validation set. 
-
-I used an adam optimizer so that manually training the learning rate wasn't necessary.
-
- <p align="center">
-  <img width="400" src="./training_validation_errors.png">
-</p>
+#### 1. The code compiles correctly.
 
 
-This plot shows that both validation and training error are small from the very start (on the scale of epochs at least). Presumably convergenc happens so fast that it does not reflect on such a coarse time scale. Indeed during the first steps of the optimization one can see values for training and validation error that are substatially higher, decaying rapidly.
+Please refer to my githup repo [P7](https://github.com/uv10000/P7), cmake and make should work in the standard way, I tried this successfully from a "clean clone". 
+
+Importang files are  src/main.cpp, this writeup file and a video. 
+
+#### 2. The car is able to drive at least 4.32 miles without incident.
+Most of the times I tried it definitely was, but there are occasional issues. Please see and judge for yourself.
 
 
+#### 3. The car drives according to the speed limit.
 
-------------------
----------------------------
-## Critical Discussion and Loose Threads
-
-
-#### 1. More training data / Track 2
-Clearly it would be desirable to accquire more training data, in particular for Track 2. However due to my time constraints I do not see a way of how to achieve this. 
-
--> It would be nice if you could provide data for Track 2 similarly as you did for Track 1 - for those of us with tight time constraintes. 
-
--------------
-
-#### 2. End-To-End vs more classical approach, specifically low-level-control
-
-As mentioned before it may be that the model merely "memorized" Track 1, rather than "properly learned" how to steer in a general environment. 
-
-I would like to know your (the revievers) opinion(s) on wether the end-to-end approach is a true alternative to a more standard pipeline, like:
-* fusion
-* perception
-* localization and mapping
-* path planning
-* low level control
-
-As alluded to above, the end-to-end-system effectively performs (among other tasks) the task of a low level controller, implicitly. Is it plausible to assume that a CNN can learn to do better than a controller designed by the principles of state of the art control theory? And even if it works well in many cases, how can one prove correctnes and robustness in all situations that may practically occur? Admittedly, a huge chunk of hand-written code man also behave in an unexpected manner in some situations, even if very good testing-mechanisms have been put in place. Validation and verification is a touchy business in either case. 
-
---------
-#### 3. Validation error suspiciously (?) low
-
-I am puzzled about the fact that the validation error is low from the very start. Possibly it converges so fast that it closely approaches the training error within the first epoch. (But even setting the epoch size to lower values seems to confirm the picture that both errors are close to each other for the very start)
+The car is moving at 49.5 mp/h most of the time. (But whoever does in real live, see discussion about bending the rules above.)
 
 
-----
-#### 4. Regularisation, where to apply dropout
-Remark: Just before the first submission I decided to turn off dropout because it yields better results this way.
-Concerning dropout: Apparently it makes no difference for my model on Track 1 if I turn off dropout. I think it drives even more steadily without! Using the side cameras definitely helped with LeNet. I have not attempted to turn of the side cameras in the presence of the NVIDIA-net-architecture. 
-Moreover I have no clear concept of where to apply dropout layers. 
+#### 4 Max Acceleration and Jerk are not Exceeded.
 
-I did not have the time to try L2 regularisation. Due to time constraints. And then there was no pressing need for regularisation as mentioned above. 
+They are presently not exceede, after following Aaron's concept of smoothing out velocity changes plus some debouncing. Before I introduced the 50 steps debounce counter to prevent lane-changes in close succession I observed the odd acceleration exeeded warning during a "double-lane-change". 
 
-----
-#### 5. Clipping/Crooping did not help for performance 
-Clipping sounded like a good idea but it (slightly, subjectively) deteriorated driving performance. Admittedly clipping has a sustantial impact on model size, or at least on inference time. Possible making the images coarser would have also helped (=somewhat equivalent to pooling layers?! ). The advice to use the coarsest level of resolution when recording training data also seems to point in this direction.
+#### 5 Car does not have collisions.
+In rare cases I had problems with other cars cutting in. As an improvement, as mentioned above, I am quite confident that I could reduce the number of incidents further by defining "lane-blocked" in an even more conservative way for the respective non-ego-lanes, without loosing much performance in terms of going close to v_max speed. 
+On one single occasion, after more than 8 minutes of flawless driving my ego-vehicle cut off another vehicle, for no apparant reason. This rare but critical behaviour should be understood and fixed. However I have spent far more time than expected on this project and I would prefer to return to this at a later stage, whenever I find the time. 
 
 
------
-#### 6. Regularisation, where to apply dropout
-
-Why did I get away without using any pooling layers? I did not use any as there were no in the NVIDIA paper. But I do not have an understanding of when and why I should apply them. May be you can explain!
+#### 6 The car stays in its lane, except for the time between changing lanes.
+Yes it does, by virtue of Aaron's cool spline mechanism. 
 
 
------
-#### 7. No transformation to other colour space
-Other than in the NVIDA paper I did not apply any colour-space conversions. I used RGB right away, successfully.  
+#### 7 The car is able to change lanes.
 
-
-
------
-#### 8. No correlation between consecutive timesteps
-Each picture is treated separately, and in total isolation.  But clearly pictures (and even more so the vehicle state) will evolve continuously.   
-Clearly this information is "thrown away" in the present algorithm. What would be a good way of making use of this. RNN? Averaging over the last few images/angles? Or even making predictions like in a Kalman filter based on a vehicle model?
 

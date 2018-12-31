@@ -207,7 +207,11 @@ int main() {
   // have a reference velocity to target
   double ref_vel= 0.0; //49.5; //mph 
 
-  int counter=200;
+  int counter=200;  // debounce counter, initalized with a high value to 
+  // keep vehicle calm until it caught up speed. Later it serves as a debounce counter
+  // reset to 50 after eache lane change (avoid high accels by double lane change;
+  // possibly this is beneficial as it helps other cars not to get "confused" by 
+  // too many lane-changes in a row
 
   
 
@@ -258,122 +262,47 @@ int main() {
 
 			bool too_close = false;
 
-			//find ref_v to use
-			vector<bool> is_free ={true,true,true};
+			// Essentially Aaron's code with a few modifications. 
+			vector<bool> is_free ={true,true,true}; // different from Aaron: we are checking each of the three lanes
 			for( int i =0 ; i< sensor_fusion.size();i++){
 				// car is in my lane
 				float d = sensor_fusion[i][6];
 				double vx = sensor_fusion[i][3];
 				double vy = sensor_fusion[i][4];
-				double check_speed = sqrt(vx*vx+vy*vy);//,0.0,0.0);
+				double check_speed = sqrt(vx*vx+vy*vy);
 				double check_car_s= sensor_fusion[i][5];
-				check_car_s += ((double) prev_size *.02*check_speed); // if using previous points can project s value out
-				for(int j=0; j<3;j++){
-					if ((d< 2+4*j+2) && (d> 2+4*j-2)){  // checking lane 0 
+				check_car_s += ((double) prev_size *.02*check_speed); // as suggested by Aaron
+				for(int j=0; j<3;j++){   // different from Aaron's: we are checking each of the three lanes
+					if ((d< 2+4*j+2) && (d> 2+4*j-2)){  // checking all three lanes
 					  if ((check_car_s > fmod(car_s - 5,max_s) ) &&(check_car_s < fmod(car_s + 30,max_s) )){ 
+						  //similiar to Aaron's; note the fmod to "bend around" max_s
 				      	is_free[j]=false;
-						//if (j==lane) {too_close=true;}
 					  }
 					}
 				}
-
-				/*
-				if ((d< 2+4*lane+2) && (d> 2+4*lane-2)){   // there is a vehicle in my lane, possibly behind
-
-				  // check s values greater than mine and s gap
-				  if ((check_car_s > car_s ) &&((check_car_s - car_s) <30 )){ // car i is on colllision course
-				    // do some logic here, lower reference velocity so we dont crash into the car in front of us
-					//could also flag to try to change lane
-					
-					//ref_vel=29.5;
-					too_close=true;
-					//if(lane>0){ lane =0;}
-				  }
-				}
-				*/
 			}
 			
+			//write state of the lanes to the console, plus the debounce counter "counter"
 			cout << is_free[0] << " " << is_free[1] << " " << is_free[2] << " " << counter << endl;
-			//bool vehicles_ahead_or_to_the_left=false;
-			//for(int j=0;j<=lane;j++){vehicles_ahead_or_to_the_left = vehicles_ahead_or_to_the_left || (is_free[j]==false);}
-			//if(vehicles_ahead_or_to_the_left == true) { // is_free[lane]==false
 			
-			if(is_free[lane]==false) {
-				ref_vel -= 1.5*.224;
+			// here the "beef" generalized from Aaron's suggestion, imlicitly a state machine
+			if(is_free[lane]==false) {  
+				ref_vel -= 1.5*.224;   // breaking 50% more strongly
+				// if ego lane is blocked, we want to change lanes, preferably to the right (German style ...)
 				if(lane<2 && (is_free[lane+1]==true)&& counter ==0 && ref_vel >30) {lane= lane +1; counter=50;}
-				else if (lane>0 && (is_free[lane-1]==true)&& counter ==0&& ref_vel >30) {lane= lane -1;counter=50;}
-				
+				else if (lane>0 && (is_free[lane-1]==true)&& counter ==0&& ref_vel >30) {lane= lane -1;counter=50;}	
+				// we debounce lane changes as described above, also we prevent lane changes if too slow
+				// initially the debounce counter is as high as 200, allowing the vehicle to catch up speed
 			}		
-			else if (ref_vel< 49.5){
+			else if (ref_vel< 49.5){ // if the lane is free, but we are to slow: catch up speed!
 				ref_vel += .224;
 			}
-			else {
+			else {   // "German style": if possible, move to the rightmost lane
 				if(lane<2 && (is_free[lane+1]==true) && counter==0 && ref_vel >30) {lane= lane +1;counter=50;}
-				//else{counter = max(counter-1,0);}
 			}
-			counter = max(counter-1,0);
-
-          	
-
-          	
-
-					/*// Test spline
-					std::vector<double> X(5), Y(5);
-   					X[0]=0.1; X[1]=0.4; X[2]=1.2; X[3]=1.8; X[4]=2.0;
-   					Y[0]=0.1; Y[1]=0.7; Y[2]=0.6; Y[3]=1.1; Y[4]=0.9;
-   					tk::spline s;
-   					s.set_points(X,Y);    // currently it is required that X is already sorted
-   					double x=1.5;
-   					printf("spline at %f is %f\n", x, s(x));  */
-          	
-			// TODO: define a path made up of (x,y) points that the car will visit sequentially every .02 seconds
-
-			/* double dist_inc = 0.5;
-    		for(int i = 0; i < 50; i++)
-    		{
-				double next_s= car_s +(i+1)*dist_inc;
-				double next_d= 1.5 *4.0;
-				vector<double> xy =getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y  );
-          		next_x_vals.push_back(xy[0]);
-          		next_y_vals.push_back(xy[1]);
-    		} */
-			/*	
-          	double pos_x;
-          	double angle;
-          	int path_size = previous_path_x.size();
-
-          	for(int i = 0; i < path_size; i++)
-          	{
-            	  next_x_vals.push_back(previous_path_x[i]);
-              	next_y_vals.push_back(previous_path_y[i]);
-          	}
-
-          	if(path_size == 0)
-          	{
-            	  pos_x = car_x;
-              	pos_y = car_y;
-              	angle = deg2rad(car_yaw);
-          	}
-          	else
-          	{
-              	pos_x = previous_path_x[path_size-1];
-              	pos_y = previous_path_y[path_size-1];
-
-              	double pos_x2 = previous_path_x[path_size-2];
-              	double pos_y2 = previous_path_y[path_size-2];
-              	angle = atan2(pos_y-pos_y2,pos_x-pos_x2);
-          	}
-
-          	double dist_inc = 0.5;
-          	for(int i = 0; i < 50-path_size; i++)
-          	{    
-              	next_x_vals.push_back(pos_x+(dist_inc)*cos(angle+(i+1)*(pi()/100)));
-              	next_y_vals.push_back(pos_y+(dist_inc)*sin(angle+(i+1)*(pi()/100)));
-              	pos_x += (dist_inc)*cos(angle+(i+1)*(pi()/100));
-              	pos_y += (dist_inc)*sin(angle+(i+1)*(pi()/100));
-          	}
-			*/
-			// create list of widely spacest waypoints, 30m apart for interpolation
+			counter = max(counter-1,0);  // decrement debounce counter
+	
+			// continue as in Aaron's code, the remainder is essentially un-altered
 			vector<double> ptsx;
 			vector<double> ptsy;
 
@@ -435,21 +364,6 @@ int main() {
 			// create a spline
 			tk::spline s;
 
-			
-			/*for(int i=0; i< ptsx.size();i++){
-				cout << ptsx[i] << " " ;
-			}
-			cout << endl;
-			for(int i=0; i< ptsy.size();i++){
-				cout << ptsy[i] << " " ;
-			}
-			cout << endl;
-			/*
-			-1 0 30.5722 91.0487 91.0487
-			-219.19 0 0.905784 12.3482 12.3482
-			path_planning: /media/voll/Volume/sdc_playground/P7/src/spline.h:294: void {anonymous}::tk::spline::set_points(const std::vector<double>&, const std::vector<double>&, bool): Assertion `m_x[i]<m_x[i+1]' failed.
-			*/
-
 			//set x,y points to the spline
 			s.set_points(ptsx,ptsy);
 
@@ -490,8 +404,6 @@ int main() {
 
 			  next_x_vals.push_back(x_point);
 			  next_y_vals.push_back(y_point);
-
-
 			}
 
 
